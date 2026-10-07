@@ -41,8 +41,9 @@ orchestrate the database migration and verify every consumer
 ### Requirements
 
 - OMP 18.6 or newer in the 18.x release line
-- Git, for installation directly from GitHub
-- Node.js 24 or newer only for local development and tests; installing the plugin does not require Node.js
+- Git, when installing or cloning directly from GitHub
+- Bun on `PATH` only for `omp plugin install` and `omp plugin uninstall`
+- Node.js 24 or newer only for local development and tests; running the plugin does not require Node.js
 
 Check your OMP version:
 
@@ -62,6 +63,8 @@ The full Git URL also works:
 omp plugin install https://github.com/jarcur1/omp-lockin.git
 ```
 
+OMP's Git/npm installer launches the external `bun` executable. If Bun is not on `PATH`, use the local-link installation below instead. After installing Bun, restart the terminal before retrying the GitHub installation.
+
 Restart OMP after installation. In an already-running session, `/reload-plugins` can load newly installed plugin sources.
 
 Verify the command:
@@ -70,17 +73,30 @@ Verify the command:
 /lockin status
 ```
 
-### Install for local development
+### Link a local clone without Bun
+
+`omp plugin link` does not launch the external Bun executable:
 
 ```sh
 git clone https://github.com/jarcur1/omp-lockin.git
-cd omp-lockin
-npm install
-npm run check
-omp plugin link .
+omp plugin link ./omp-lockin
+```
+
+If this repository is already cloned under the default Windows agent directory:
+
+```powershell
+omp plugin link "$HOME/.omp/agent/omp-lockin"
 ```
 
 Restart OMP or run `/reload-plugins`. `omp plugin link` uses a directory junction on Windows and a symbolic link on Unix-like systems, so source edits are available without reinstalling the package.
+
+### Local development
+
+```sh
+cd omp-lockin
+npm install
+npm run check
+```
 
 To load the extension for one OMP process without installing or linking it:
 
@@ -91,10 +107,18 @@ omp --extension ./src/index.ts
 PowerShell:
 
 ```powershell
-omp --extension .\\src\\index.ts
+omp --extension .\src\index.ts
 ```
 
-### Uninstall
+### Disable or uninstall
+
+Disabling works without Bun and leaves the local link in place:
+
+```sh
+omp plugin disable omp-lockin
+```
+
+With Bun on `PATH`, remove the package or link completely:
 
 ```sh
 omp plugin uninstall omp-lockin

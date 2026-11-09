@@ -4,9 +4,11 @@
 
 Type `/lockin` before difficult work. The extension requests the highest reasoning level for the main session and participating child sessions. Type `/lockin` again when the difficult work is finished, and each live session returns to the reasoning level it had before lock-in was enabled.
 
+Use `/lockin all` to enable maximum reasoning across **all open OMP terminals running this plugin under the same OS user/home**, including terminals in other projects. Use `/lockin all off` to restore their previous levels.
+
 ## What it does
 
-Lock-in is an in-memory, process-local toggle:
+Each OMP process keeps an in-memory lock-in state:
 
 1. OMP starts with lock-in **off**. Your configured models, roles, and reasoning levels behave normally.
 2. `/lockin` records the current reasoning level of every live session bound to the extension.
@@ -21,10 +23,13 @@ The extension does **not** edit `config.yml`, model-role assignments, agent file
 
 | Command | Behavior |
 | --- | --- |
-| `/lockin` | Toggle lock-in on or off. |
-| `/lockin on` | Enable lock-in. Safe to repeat. |
-| `/lockin off` | Disable lock-in and restore recorded levels. Safe to repeat. |
-| `/lockin status` | Show whether lock-in is enabled and how many live workflow sessions it tracks. |
+| `/lockin` | Toggle lock-in in this terminal and its participating subagents. |
+| `/lockin on` | Enable lock-in in this terminal. Safe to repeat. |
+| `/lockin off` | Restore recorded levels in this terminal. Safe to repeat. |
+| `/lockin status` | Show this terminal's lock-in state and live workflow session count. |
+| `/lockin all` or `/lockin all on` | Enable lock-in in every currently participating OMP terminal. Safe to repeat. |
+| `/lockin all off` | Restore recorded levels in every currently participating terminal. |
+| `/lockin all status` | Show enabled/reachable terminal counts and their total live workflow sessions. |
 
 Example:
 
@@ -35,6 +40,17 @@ orchestrate the database migration and verify every consumer
 
 /lockin off
 ```
+
+### Cross-terminal coordination
+
+Install or reload the updated plugin in **each** terminal before using `/lockin all`. Terminals without the updated plugin cannot receive the command.
+
+Each participating process registers an authenticated, loopback-only IPC endpoint in `~/.omp/lockin/`. Cross-terminal commands discover the current endpoints and wait for acknowledgements. Unreachable terminals and failed session updates produce a warning; success is not assumed for them. Runtime files do not change OMP configuration or model defaults.
+
+The command targets the terminals registered when it runs. A terminal opened afterward starts with lock-in off; run `/lockin all` again to include it. New subagents inside an already-enabled terminal still inherit lock-in. `/lockin off` remains local; use `/lockin all off` for a cross-terminal restore.
+
+Reloading or closing a participating terminal unregisters it and restores its surviving sessions where graceful cleanup is available. Dead-process registry entries are ignored or removed on later broadcasts.
+
 
 ## Installation
 
@@ -132,7 +148,7 @@ Restart OMP or run `/reload-plugins` afterward.
 - Task and eval subagents receive independent extension bindings and are tracked directly.
 - OMP's advisor runtime does not currently receive an independent extension binding, so advisor turns are outside the guaranteed toggle coverage. An advisor request already in flight cannot be changed.
 - Models without a controllable reasoning surface continue to run normally.
-- State is local to one OMP process. Starting another OMP process starts with lock-in off.
+- State is local to each OMP process. Cross-terminal commands coordinate the currently registered processes without persisting a global enabled state. Starting another OMP process still starts with lock-in off.
 - Graceful session switches and shutdowns restore the recorded level. A hard process termination cannot run extension cleanup; persistent OMP configuration is still untouched.
 
 ## Why not set `defaultThinkingLevel: max`?
